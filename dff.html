@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crop Image Index Prediction</title>
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+</head>
+<body>
+    <h1>Crop Image Index Prediction</h1>
+    <input type="file" accept="image/*" onchange="previewImage(event)">
+    <br>
+    <img id="preview" src="#" alt="Uploaded Image" style="max-width: 300px; max-height: 300px;">
+    <br>
+    <button onclick="predictCropIndex()">Predict</button>
+    <br>
+    <div id="prediction"></div>
+
+    <script>
+        async function loadModel() {
+            // Load the pre-trained model
+            const model = await tf.loadLayersModel('model.h5');
+            return model;
+        }
+
+        async function predictCropIndex() {
+            const model = await loadModel();
+
+            const imgElement = document.getElementById('preview');
+            const img = tf.browser.fromPixels(imgElement).toFloat().expandDims();
+
+            // Make predictions
+            const prediction = model.predict(img);
+
+            // Display prediction
+            document.getElementById('prediction').innerText = prediction;
+        }
+
+        function previewImage(event) {
+            const reader = new FileReader();
+            reader.onload = function () {
+                const imgElement = document.getElementById('preview');
+                imgElement.src = reader.result;
+            }
+            reader.readAsDataURL(event.target.files[0]);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Forecast</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        #plot {
+            width: 80%;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <h2>Weather Forecast</h2>
+    <form id="city-form">
+        <label for="city">Enter City Name:</label>
+        <input type="text" id="city" name="city">
+        <button type="submit">Get Forecast</button>
+    </form>
+
+    <table id="weather-table">
+        <thead>
+            <tr>
+                <th>Date and Time</th>
+                <th>Temperature (°C)</th>
+                <th>Humidity (%)</th>
+                <th>Weather Description</th>
+            </tr>
+        </thead>
+        <tbody id="weather-data">
+            <!-- Weather data will be inserted here -->
+        </tbody>
+    </table>
+
+    <div id="plot"></div>
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        document.getElementById('city-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const city = document.getElementById('city').value;
+            fetchWeatherData(city);
+        });
+
+        function fetchWeatherData(city) {
+            const API_KEY = 'YOUR_API_KEY'; // Replace with your OpenWeatherMap API key
+            const apiUrl = `http://api.openweathermap.org/data/2.5/forecast?q=${city}&appId=${API_KEY}&units=metric`;
+
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    displayWeatherData(data);
+                    plotTemperature(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching weather data:', error);
+                });
+        }
+
+        function displayWeatherData(data) {
+            const weatherData = data.list;
+            const tableBody = document.getElementById('weather-data');
+
+            tableBody.innerHTML = '';
+
+            weatherData.forEach(item => {
+                const timestamp = new Date(item.dt * 1000).toLocaleString();
+                const temperature = item.main.temp;
+                const humidity = item.main.humidity;
+                const weatherDescription = item.weather[0].description;
+
+                const row = `
+                    <tr>
+                        <td>${timestamp}</td>
+                        <td>${temperature}</td>
+                        <td>${humidity}</td>
+                        <td>${weatherDescription}</td>
+                    </tr>
+                `;
+                tableBody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        function plotTemperature(data) {
+            const timestamps = data.list.map(item => new Date(item.dt * 1000));
+            const temperatures = data.list.map(item => item.main.temp);
+
+            const plotData = [{
+                x: timestamps,
+                y: temperatures,
+                type: 'scatter',
+                mode: 'lines',
+                marker: {color: 'blue'},
+                name: 'Temperature (°C)'
+            }];
+
+            const layout = {
+                title: 'Temperature Trend',
+                xaxis: {
+                    title: 'Date and Time'
+                },
+                yaxis: {
+                    title: 'Temperature (°C)'
+                }
+            };
+
+            Plotly.newPlot('plot', plotData, layout);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Commodities Data</title>
+  <!-- Bootstrap core CSS -->
+  <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Fontawesome CSS -->
+  <link href="css/all.css" rel="stylesheet">
+  <!-- Custom styles for this template -->
+  <link href="css/style.css" rel="stylesheet">
+  <!-- Plotly.js CDN -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    .graph-container {
+      margin-top: 50px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar fixed-top navbar-expand-lg navbar-dark bg-light top-nav fixed-top">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">
+        <!-- Your brand/logo here -->
+      </a>
+      <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="fas fa-bars"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarResponsive">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="about.html">About</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="predict_disease.html">Predict Disease</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="weather_predict.html">Predict Current Weather</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="current_price.html">Get Current Prices</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="full-title">
+    <div class="container">
+      <!-- Page Heading/Breadcrumbs -->
+      <h1 class="mt-4 mb-3">Current Crop Prices in your area
+        <small>Government verified</small>
+      </h1>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Commodities Data</h1>
+  
+    <form>
+      <label for="state">Select a State:</label>
+      <select id="state" name="state">
+        <option value="" disabled selected>Select a State</option>
+        <!-- Populate options dynamically with JavaScript -->
+      </select>
+    
+      <label for="district">Select a District:</label>
+      <select id="district" name="district" disabled>
+        <option value="" disabled selected>Select a District</option>
+        <!-- Populate options dynamically with JavaScript -->
+      </select>
+
+      <label for="commodity">Select a Commodity:</label>
+      <select id="commodity" name="commodity">
+        <option value="" selected>Show All Commodities</option>
+        <!-- Populate options dynamically with JavaScript -->
+      </select>
+    </form>
+  
+    <div id="data"></div>
+    <div id="graph" class="graph-container"></div>
+  </div>
+
+  <!-- Bootstrap core JavaScript -->
+  <script src="vendor/jquery/jquery.min.js"></script>
+  <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <!-- Contact form JavaScript -->
+  <script src="js/jqBootstrapValidation.js"></script>
+  <script src="js/contact_me.js"></script>
+
+  <script>
+    async function fetchData() {
+      const response = await fetch('commodities_data.csv');
+      const data = await response.text();
+      const rows = data.trim().split('\n').slice(1); // Skip header row
+      const result = {};
+      rows.forEach(row => {
+        const [state, district, market, commodity, variety, grade, arrivalDate, minPrice, maxPrice, modalPrice] = row.split(',');
+        if (!result[state]) {
+          result[state] = [];
+        }
+        result[state].push({
+          District: district,
+          Market: market,
+          Commodity: commodity,
+          Variety: variety,
+          Grade: grade,
+          Arrival_Date: arrivalDate,
+          Min_x0020_Price: minPrice,
+          Max_x0020_Price: maxPrice,
+          Modal_x0020_Price: modalPrice
+        });
+      });
+      return result;
+    }
+
+    async function populateStates() {
+      const data = await fetchData();
+      const stateDropdown = document.getElementById('state');
+      stateDropdown.innerHTML = '<option value="" disabled selected>Select a State</option>';
+      Object.keys(data).forEach(state => {
+        const option = document.createElement('option');
+        option.value = state;
+        option.text = state;
+        stateDropdown.appendChild(option);
+      });
+    }
+
+    function populateDistricts(selectedState) {
+      const data = JSON.parse(localStorage.getItem('commoditiesData'));
+      const districtDropdown = document.getElementById('district');
+      districtDropdown.innerHTML = '<option value="" disabled selected>Select a District</option>';
+      data[selectedState].forEach(district => {
+        const option = document.createElement('option');
+        option.value = district.District;
+        option.text = district.District;
+        districtDropdown.appendChild(option);
+      });
+      districtDropdown.disabled = false;
+    }
+
+    function populateCommodities(selectedState, selectedDistrict) {
+      const data = JSON.parse(localStorage.getItem('commoditiesData'));
+      const commodityDropdown = document.getElementById('commodity');
+      commodityDropdown.innerHTML = '<option value="" selected>Show All Commodities</option>';
+      const commodities = data[selectedState]
+        .filter(item => item.District === selectedDistrict)
+        .map(item => item.Commodity);
+      const uniqueCommodities = [...new Set(commodities)];
+      uniqueCommodities.forEach(commodity => {
+        const option = document.createElement('option');
+        option.value = commodity;
+        option.text = commodity;
+        commodityDropdown.appendChild(option);
+      });
+      commodityDropdown.disabled = false;
+    }
+
+    function displayData(selectedState, selectedDistrict, selectedCommodity) {
+      const data = JSON.parse(localStorage.getItem('commoditiesData'));
+      let filteredData = data[selectedState].filter(item => item.District === selectedDistrict);
+      if (selectedCommodity !== '') {
+        filteredData = filteredData.filter(item => item.Commodity === selectedCommodity);
+      }
+      const table = `
+        <table>
+          <thead>
+            <tr>
+              <th>Market</th>
+              <th>Variety</th>
+              <th>Grade</th>
+              <th>Arrival Date</th>
+              <th>Min Price</th>
+              <th>Max Price</th>
+              <th>Modal Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredData.map(item => `
+              <tr>
+                <td>${item.Market}</td>
+                <td>${item.Variety}</td>
+                <td>${item.Grade}</td>
+                <td>${item.Arrival_Date}</td>
+                <td>${item.Min_x0020_Price}</td>
+                <td>${item.Max_x0020_Price}</td>
+                <td>${item.Modal_x0020_Price}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      document.getElementById('data').innerHTML = table;
+
+      // Create a graph
+      if (selectedCommodity === '') {
+        const graphData = [];
+        const commodities = [...new Set(filteredData.map(item => item.Commodity))];
+        commodities.forEach(commodity => {
+          const modalPrices = filteredData
+            .filter(item => item.Commodity === commodity)
+            .map(item => parseFloat(item.Modal_x0020_Price));
+          const marketNames = filteredData
+            .filter(item => item.Commodity === commodity)
+            .map(item => item.Market);
+          const trace = {
+            x: marketNames,
+            y: modalPrices,
+            type: 'bar',
+            name: commodity
+          };
+          graphData.push(trace);
+        });
+
+        const layout = {
+          title: 'Modal Prices by Market',
+          xaxis: {
+            title: 'Market'
+          },
+          yaxis: {
+            title: 'Modal Price'
+          }
+        };
+
+        Plotly.newPlot('graph', graphData, layout);
+      } else {
+        const modalPrices = filteredData.map(item => parseFloat(item.Modal_x0020_Price));
+        const marketNames = filteredData.map(item => item.Market);
+        const graphData = [{
+          x: marketNames,
+          y: modalPrices,
+          type: 'bar'
+        }];
+        const layout = {
+          title: 'Modal Prices by Market',
+          xaxis: {
+            title: 'Market'
+          },
+          yaxis: {
+            title: 'Modal Price'
+          }
+        };
+        Plotly.newPlot('graph', graphData, layout);
+      }
+    }
+
+    document.getElementById('state').addEventListener('change', function() {
+      const selectedState = this.value;
+      populateDistricts(selectedState);
+    });
+
+    document.getElementById('district').addEventListener('change', function() {
+      const selectedState = document.getElementById('state').value;
+      const selectedDistrict = this.value;
+      const selectedCommodity = document.getElementById('commodity').value;
+      displayData(selectedState, selectedDistrict, selectedCommodity);
+      populateCommodities(selectedState, selectedDistrict);
+    });
+
+    document.getElementById('commodity').addEventListener('change', function() {
+      const selectedState = document.getElementById('state').value;
+      const selectedDistrict = document.getElementById('district').value;
+      const selectedCommodity = this.value;
+      displayData(selectedState, selectedDistrict, selectedCommodity);
+    });
+
+    populateStates().then(() => {
+      fetchData().then(data => {
+        localStorage.setItem('commoditiesData', JSON.stringify(data));
+      });
+    });
+  </script>
+</body>
+</html>
